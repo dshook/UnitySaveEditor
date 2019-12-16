@@ -370,10 +370,20 @@ namespace UnityEditor.SaveEditor
 
       var treeElements = new List<SaveEditorTreeElement>();
 
-      //regenerate all the elements for the current element, but then only use the last one to get the new data
+      //regenerate all the elements for the current element, but then only use the ones that are new based on count
       treeGenerator.AddChildrenRecursive(treeElements, item.data, item.data.value, item.data.valueType);
 
       treeElements = treeElements.Where((t, i) => i >= decendents.Count).ToList();
+
+      if(treeElements.Count > 1){
+        //if we spawned a new class or something with children of its own we need to reparent its children to it first
+        ReparentElementsAtIndex (
+          treeElements.Skip(1).ToList().ConvertAll(c => (TreeElement)c),
+          treeElements.First(),
+          0
+        );
+        treeElements = treeElements.Take(1).ToList();
+      }
 
       ReparentElementsAtIndex (
         treeElements.ConvertAll(c => (TreeElement)c),
