@@ -84,9 +84,9 @@ namespace UnityEditor.SaveEditor
         if(data != null){
           foreach(object item in (Array)data) {
             var child = AddChild(treeElements, element, idx, item, item.GetType(),
-              (old, val, titem) => { ((IList)data)[(int)titem.nameValue] = val; },
-              (val) => { ((IList)data).Remove(val.value); }
+              (old, val, titem) => { ((IList)data)[(int)titem.nameValue] = val; }
             );
+            child.removeValueFromParent = (val) => { ((IList)data).Remove(val.value); };
             child.needsSiblingRename = true;
             AddChildrenRecursive(treeElements, child, item, MultiColumnTreeView.GetEnumeratedType(typeSrc));
 
@@ -100,9 +100,9 @@ namespace UnityEditor.SaveEditor
           foreach(var item in ((IDictionary)data).Keys) {
             var value = ((IDictionary)data)[item];
             var child = AddChild(treeElements, element, item, value, value.GetType(),
-              (old, val, titem) => { ((IDictionary)data)[titem.nameValue] = val; },
-              (val) => { ((IDictionary)data).Remove(val.nameValue); }
+              (old, val, titem) => { ((IDictionary)data)[titem.nameValue] = val; }
             );
+            child.removeValueFromParent = (val) => { ((IDictionary)data).Remove(val.nameValue); };
             child.setName = (oldKey, newKey, treeItem) => {
               if(oldKey == newKey || oldKey.Equals(newKey)){ return; }
               var cData = (IDictionary)data;
@@ -130,9 +130,9 @@ namespace UnityEditor.SaveEditor
           var idx = 0;
           foreach(object item in (IList)data) {
             var child = AddChild(treeElements, element, idx, item, item.GetType(),
-              (old, val, titem) => { ((IList)data)[(int)titem.nameValue] = val; },
-              (val) => { ((IList)data).Remove(val.value); }
+              (old, val, titem) => { ((IList)data)[(int)titem.nameValue] = val; }
             );
+            child.removeValueFromParent = (val) => { ((IList)data).Remove(val.value); };
             child.needsSiblingRename = true;
             AddChildrenRecursive(treeElements, child, item, MultiColumnTreeView.GetEnumeratedType(typeSrc));
             idx++;
@@ -145,7 +145,32 @@ namespace UnityEditor.SaveEditor
         };
         element.needsSiblingRename = true;
 
-      } else if(data != null && (typeSrc.IsClass || IsCustomValueType(typeSrc))){
+      } else if(typeSrc.IsGenericType && typeSrc.GetGenericTypeDefinition() == typeof(HashSet<>)) {
+
+        if(data != null){
+          var hs = (IEnumerable)data;
+          foreach(object item in hs) {
+            var child = AddChild(treeElements, element, item.GetHashCode(), item, item.GetType(),
+              (old, val, titem) => { /*hs.Remove(old); hs.Add(val); */}
+            );
+
+            child.removeValueFromParent = (val) => {
+              MethodInfo methodInfo = typeSrc.GetMethod("Remove");
+              object[] parametersArray = new object[] {val.value};
+              methodInfo.Invoke(data, parametersArray);
+            };
+            // child.needsSiblingRename = true;
+            AddChildrenRecursive(treeElements, child, item, MultiColumnTreeView.GetEnumeratedType(typeSrc));
+          }
+        }
+        element.addToCollection = (treeItem) => {
+          var val = Activator.CreateInstance(MultiColumnTreeView.GetEnumeratedType(element.valueType));
+          MethodInfo methodInfo = treeItem.valueType.GetMethod("Add");
+          object[] parametersArray = new object[] {val};
+          methodInfo.Invoke(treeItem.value, parametersArray);
+          return val;
+        };
+      }else if(data != null && (typeSrc.IsClass || IsCustomValueType(typeSrc))){
         // Debug.Log("Adding Class");
 
         foreach (var prop in typeSrc.GetProperties())
@@ -198,15 +223,13 @@ namespace UnityEditor.SaveEditor
       object name,
       object value,
       Type valueType,
-      Action<object, object, SaveEditorTreeElement> setValue,
-      Action<SaveEditorTreeElement> removeValueFromParent = null
+      Action<object, object, SaveEditorTreeElement> setValue
     ){
       var child = new SaveEditorTreeElement(name.ToString(), currentElement.depth + 1, ++IDCounter);
       child.originalValue = value;
       child.value = value;
       child.valueType = valueType;
       child.setValue = setValue;
-      child.removeValueFromParent = removeValueFromParent;
       child.nameValue = name;
       child.originalNameValue = name;
 
