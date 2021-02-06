@@ -346,6 +346,14 @@ namespace UnityEditor.SaveEditor
         if(value == null){
           label += " null";
         }
+
+        if(dataType.IsValueType){
+          var toStr = value.ToString();
+          if(!string.IsNullOrEmpty(toStr) && toStr != label){
+            label += " " + toStr;
+          }
+        }
+
         GUI.Label(cellRect, label);
       }
 
