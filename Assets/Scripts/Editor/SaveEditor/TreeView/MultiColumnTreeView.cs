@@ -110,7 +110,7 @@ namespace UnityEditor.SaveEditor
       get{
         if(_errorGuiStyle == null){
           _errorGuiStyle = new GUIStyle(defaultGuiStyle);
-          _errorGuiStyle.normal.textColor = Colors.red;
+          _errorGuiStyle.normal.textColor = Color.red;
         }
         return _errorGuiStyle;
       }
