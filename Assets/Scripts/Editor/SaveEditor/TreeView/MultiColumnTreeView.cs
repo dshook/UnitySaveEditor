@@ -345,9 +345,7 @@ namespace UnityEditor.SaveEditor
         var label = GetCSharpRepresentation(dataType, true);
         if(value == null){
           label += " null";
-        }
-
-        if(dataType.IsValueType){
+        }else if(dataType.IsValueType){
           var toStr = value.ToString();
           if(!string.IsNullOrEmpty(toStr) && toStr != label){
             label += " " + toStr;
